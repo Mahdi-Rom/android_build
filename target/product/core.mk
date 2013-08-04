@@ -40,7 +40,6 @@ PRODUCT_PACKAGES += \
     libbcc \
     libfilterpack_imageproc \
     libgabi++ \
-    libanalogradiobroadcasting \
     libkeystore \
     libmdnssd \
     libnfc_ndef \
