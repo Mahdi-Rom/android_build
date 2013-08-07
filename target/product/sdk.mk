@@ -20,8 +20,6 @@ PRODUCT_PROPERTY_OVERRIDES :=
 PRODUCT_PACKAGES := \
 	Calculator \
 	DeskClock \
-	Email \
-	Exchange2 \
 	FusedLocation \
 	Gallery \
 	Music \
@@ -52,7 +50,6 @@ PRODUCT_PACKAGES := \
 	ApiDemos \
 	GestureBuilder \
 	CubeLiveWallpapers \
-	QuickSearchBox \
 	WidgetPreview \
 	librs_jni \
 	ConnectivityTest \
