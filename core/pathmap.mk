@@ -96,8 +96,8 @@ FRAMEWORKS_BASE_SUBDIRS := \
 	    telephony \
 	    wifi \
 	    keystore \
-	)	    
-	 
+	    fmradio \
+	 )
 
 #
 # A version of FRAMEWORKS_BASE_SUBDIRS that is expanded to full paths from
