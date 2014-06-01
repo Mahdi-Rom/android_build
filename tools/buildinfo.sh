@@ -34,6 +34,7 @@ echo "ro.board.platform=$TARGET_BOARD_PLATFORM"
 
 echo "# ro.build.product is obsolete; use ro.product.device"
 echo "ro.build.product=$TARGET_DEVICE"
+echo "ro.product.device=$TARGET_DEVICE"
 if [ "$TARGET_UNIFIED_DEVICE" == "" ] ; then
   echo "ro.product.model=$PRODUCT_MODEL"
   echo "ro.product.device=$TARGET_DEVICE"
