@@ -52,11 +52,6 @@ Usage:  ota_from_target_files [flags] input_target_files output_ota_package
   -a  (--aslr_mode)  <on|off>
       Specify whether to turn on ASLR for the package (on by default).
 
-  -2  (--two_step)
-      Generate a 'two-step' OTA package, where recovery is updated
-      first, so that any changes made to the system partition are done
-      using the new recovery (new kernel, etc.).
-
   --backup <boolean>
       Enable or disable the execution of backuptool.sh.
       Disabled by default.
@@ -67,6 +62,11 @@ Usage:  ota_from_target_files [flags] input_target_files output_ota_package
   --override_prop <boolean>
       Override build.prop items with custom vendor init.
       Enabled when TARGET_UNIFIED_DEVICE is defined in BoardConfig
+
+  -2  (--two_step)
+      Generate a 'two-step' OTA package, where recovery is updated
+      first, so that any changes made to the system partition are done
+      using the new recovery (new kernel, etc.).
 
 """
 
@@ -104,10 +104,10 @@ OPTIONS.omit_prereq = False
 OPTIONS.extra_script = None
 OPTIONS.aslr_mode = True
 OPTIONS.worker_threads = 3
-OPTIONS.two_step = False
 OPTIONS.backuptool = False
 OPTIONS.override_device = 'auto'
 OPTIONS.override_prop = False
+OPTIONS.two_step = False
 
 def MostPopularKey(d, default):
   """Given a dict, return the key corresponding to the largest
@@ -121,7 +121,7 @@ def MostPopularKey(d, default):
 def IsSymlink(info):
   """Return true if the zipfile.ZipInfo object passed in represents a
   symlink."""
-  return (info.external_attr >> 16) == 0120777
+  return (info.external_attr >> 16 & 0770000) == 0120000
 
 def IsRegular(info):
   """Return true if the zipfile.ZipInfo object passed in represents a
@@ -359,14 +359,12 @@ def SignOutput(temp_zip_name, output_zip_name):
   common.SignFile(temp_zip_name, output_zip_name, OPTIONS.package_key, pw,
                   whole_file=True)
 
-
-
-def AppendAssertions(script, input_zip):
+def AppendAssertions(script, info_dict):
   if OPTIONS.override_device == "auto":
     if OPTIONS.override_prop:
-      device = GetBuildProp("ro.build.product", input_zip)
+      device = GetBuildProp("ro.build.product", info_dict)
     else:
-      device = GetBuildProp("ro.product.device", input_zip)
+      device = GetBuildProp("ro.product.device", info_dict)
   else:
     device = OPTIONS.override_device
   script.AssertDevice(device)
@@ -432,18 +430,14 @@ def WriteFullOTAPackage(input_zip, output_zip):
   # change very often.
   script = edify_generator.EdifyGenerator(3, OPTIONS.info_dict)
 
-  if OPTIONS.override_prop:
-    metadata = {"post-timestamp": GetBuildProp("ro.build.date.utc",
-                                               OPTIONS.info_dict),
-                }
-  else:
-    metadata = {"post-build": GetBuildProp("ro.build.fingerprint",
-                                           OPTIONS.info_dict),
-                "pre-device": GetBuildProp("ro.product.device",
-                                           OPTIONS.info_dict),
-                "post-timestamp": GetBuildProp("ro.build.date.utc",
-                                               OPTIONS.info_dict),
-                }
+  metadata = {}
+  metadata["post-timestamp"] = GetBuildProp("ro.build.date.utc",
+                                            OPTIONS.info_dict)
+  if not OPTIONS.override_prop:
+    metadata["post-build"] = GetBuildProp("ro.build.fingerprint",
+                                          OPTIONS.info_dict)
+    metadata["pre-device"] = GetBuildProp("ro.product.device",
+                                          OPTIONS.info_dict)
 
   device_specific = common.DeviceSpecificParams(
       input_zip=input_zip,
@@ -481,8 +475,8 @@ def WriteFullOTAPackage(input_zip, output_zip):
   #       set up system to update recovery partition on first boot
   #    complete script normally (allow recovery to mark itself finished and reboot)
 
-  recovery_img = common.GetBootableImage("recovery.img", "recovery.img",
-                                         OPTIONS.input_tmp, "RECOVERY")
+#  recovery_img = common.GetBootableImage("recovery.img", "recovery.img",
+# 
   if OPTIONS.two_step:
     if not OPTIONS.info_dict.get("multistage_support", None):
       assert False, "two-step packages not supported by this build"
@@ -532,7 +526,7 @@ else if get_stage("%(bcb_dev)s", "stage") == "3/3" then
   script.Print("Formatting /system")
   script.FormatPartition("/system")
   script.Mount("/system")
-  script.UnpackPackageDir("recovery", "/system")
+#  script.UnpackPackageDir("recovery", "/system")
   script.Print("Extracting /system")
   script.UnpackPackageDir("system", "/system")
 
@@ -637,17 +631,12 @@ def WriteIncrementalOTAPackage(target_zip, source_zip, output_zip):
            "can't install it.")
   script = edify_generator.EdifyGenerator(source_version,
                                           OPTIONS.target_info_dict)
-
-  if OPTIONS.override_prop:
-    metadata = {"post-timestamp": GetBuildProp("ro.build.date.utc",
-                                               OPTIONS.target_info_dict),
-                }
-  else:
-    metadata = {"pre-device": GetBuildProp("ro.product.device",
-                                           OPTIONS.source_info_dict),
-                "post-timestamp": GetBuildProp("ro.build.date.utc",
-                                               OPTIONS.target_info_dict),
-                }
+  metadata = {}
+  metadata["post-timestamp"] = GetBuildProp("ro.build.date.utc",
+                                            OPTIONS.info_dict)
+  if not OPTIONS.override_prop:
+    metadata["pre-device"] = GetBuildProp("ro.product.device",
+                                          OPTIONS.info_dict)
 
   device_specific = common.DeviceSpecificParams(
       source_zip=source_zip,
@@ -1050,10 +1039,10 @@ def main(argv):
                                               "extra_script=",
                                               "worker_threads=",
                                               "aslr_mode=",
-                                              "two_step",
                                               "backup=",
                                               "override_device=",
-                                              "override_prop="],
+                                              "override_prop=",
+                                              "two_step"],
                              extra_option_handler=option_handler)
 
   if len(args) != 2:
